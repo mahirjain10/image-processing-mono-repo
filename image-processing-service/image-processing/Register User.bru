@@ -1,0 +1,20 @@
+meta {
+  name: Register User
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://0.0.0.0:3000/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name":"Mahir",
+    "email":"mahissrsssssss@gmail.com",
+    "password":"mahirjain30@"
+  }  
+  
+}

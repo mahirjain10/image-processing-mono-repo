@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "image-processing",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
