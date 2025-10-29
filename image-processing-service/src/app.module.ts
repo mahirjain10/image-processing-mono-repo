@@ -5,6 +5,7 @@ import { SharedModule } from './shared/shared.module';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from '@shared/prisma/prisma.module';
+import { UploadModule } from './shared/upload/upload.module';
 import config from '@config/config';
 
 @Module({
@@ -22,6 +23,7 @@ import config from '@config/config';
     AuthModule,
     SharedModule,
     PrismaModule,
+    UploadModule,
   ],
   providers: [AppService],
   controllers: [AppController],

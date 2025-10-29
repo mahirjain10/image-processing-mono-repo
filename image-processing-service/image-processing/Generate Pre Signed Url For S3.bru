@@ -1,0 +1,18 @@
+meta {
+  name: Generate Pre Signed Url For S3
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:3000/upload/generate-url
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "key":"/hello.png",
+    "mimeType":"image/jpeg"
+  }
+}

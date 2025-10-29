@@ -1,6 +1,6 @@
-model user {
+model image_processing {
     id        String   @unique @default(uuid())
-    name      String
+    key      String
     email     String   @unique
     password  String
     login_limit Int @default(0)

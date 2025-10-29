@@ -60,7 +60,7 @@ export class AuthController {
       throw new NotFoundException('User with given email not found');
     }
     if (user.password !== password) {
-      throw new NotFoundException('Password mismatch');
+      throw new BadRequestException('Password mismatch');
     }
   }
 }
