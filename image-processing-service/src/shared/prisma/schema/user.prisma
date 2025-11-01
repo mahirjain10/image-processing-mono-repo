@@ -1,10 +1,16 @@
-model user {
-    id        String   @unique @default(uuid())
-    name      String
-    email     String   @unique
-    password  String
-    login_limit Int @default(0)
-    upload_limit Int @default(0)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+model User {
+  id              String              @id @default(uuid())
+  name            String
+  email           String              @unique
+  password        String
+
+  loginLimit      Int                 @default(0) @map("login_limit")
+  uploadLimit     Int                 @default(0) @map("upload_limit")
+
+  imageProcessing ImageProcessing[]   @relation("UserToImages")
+
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt  @default(now()) @map("updated_at")
+
+  @@map("user")
 }

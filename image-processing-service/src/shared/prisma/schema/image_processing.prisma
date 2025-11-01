@@ -1,10 +1,25 @@
-model image_processing {
-    id        String   @unique @default(uuid())
-    key      String
-    email     String   @unique
-    password  String
-    login_limit Int @default(0)
-    upload_limit Int @default(0)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+model ImageProcessing {
+  id              String   @id @default(uuid())
+
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], name: "UserToImages")
+
+  filename        String
+  s3RawKey        String?  @map("s3_raw_key")
+  s3ProcessedKey  String?  @map("s3_processed_key")
+  status          STATUS
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @default(now()) @map("updated_at")
+
+  @@map("image_processing")
+}
+
+
+enum STATUS {
+    PENDING
+    UPLOADING
+    PROCESSING
+    PROCESSED
+    FAILED
 }

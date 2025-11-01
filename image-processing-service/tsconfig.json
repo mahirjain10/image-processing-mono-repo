@@ -22,6 +22,9 @@
     "paths": {
       "@config/*": ["src/config/*"],
       "@shared/*": ["src/shared/*"],
+      "@auth/constants/*": ["src/auth/constants/*"],
+      "@auth/dto/*": ["src/auth/dto/*"],
+      "@auth/interface/*": ["src/auth/interface/*"],
       "@prisma/*": ["src/shared/prisma/*"],
       "@prisma-client": ["src/shared/prisma/generated/client"],
       "@src/*": ["src/*"]

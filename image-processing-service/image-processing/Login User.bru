@@ -1,0 +1,24 @@
+meta {
+  name: Login User
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://0.0.0.0:3000/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+      "email":"masshsisssrsssssss@gmail.com",
+    "password":"mahirjain30@"
+  }
+}
+
+script:post-response {
+  const token = res.headers.cookies
+  
+  
+}

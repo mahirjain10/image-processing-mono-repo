@@ -5,11 +5,15 @@ import { SharedModule } from './shared/shared.module';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from '@shared/prisma/prisma.module';
-import { UploadModule } from './shared/upload/upload.module';
+import { UploadModule } from './upload/upload.module';
 import config from '@config/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { CronsModule } from '@shared/crons/crons.module';
+
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       load:[config],
@@ -24,6 +28,7 @@ import config from '@config/config';
     SharedModule,
     PrismaModule,
     UploadModule,
+    CronsModule
   ],
   providers: [AppService],
   controllers: [AppController],

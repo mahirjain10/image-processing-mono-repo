@@ -1,0 +1,8 @@
+export const EXPIRES_IN = 3000
+export enum STATUS {
+    PENDING = 'PENDING',
+    UPLOADING='UPLOADING',
+    PROCESSING = 'PROCESSING',
+    PROCESSED = 'PROCESSED',
+    FAILED = 'FAILED'
+}
