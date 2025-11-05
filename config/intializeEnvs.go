@@ -11,12 +11,14 @@ import (
 type Config struct {
 	RabbitMqURL   string
 	RabbitMqQueue string
+	AwsBucketName string
 }
 
-func NewConfig(url string, queueName string) *Config {
+func NewConfig(url string, queueName string, bucketName string) *Config {
 	return &Config{
 		RabbitMqURL:   url,
 		RabbitMqQueue: queueName,
+		AwsBucketName: bucketName,
 	}
 }
 func InitializeEnvs() (*Config, error) {
@@ -43,6 +45,6 @@ func InitializeEnvs() (*Config, error) {
 	if url == "" || queue == "" || aws_region == "" || aws_access_key_id == "" || aws_secret_access_key == "" || aws_bucket_name == "" {
 		return nil, fmt.Errorf("RABBITMQ_URL or RABBITMQ_QUEUE or AWS_REGION or AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY or AWS_BUCKET_NAME is missing")
 	}
-	config := NewConfig(url, queue)
+	config := NewConfig(url, queue, aws_bucket_name)
 	return config, nil
 }

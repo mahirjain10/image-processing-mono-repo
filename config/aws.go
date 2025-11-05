@@ -11,8 +11,7 @@ import (
 func InitializeAws() (aws.Config, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return aws.Config{}, fmt.Errorf("error while initializing aws : %v", err)
+		return aws.Config{}, fmt.Errorf("error while initializing aws: %v", err)
 	}
-
 	return cfg, nil
 }
