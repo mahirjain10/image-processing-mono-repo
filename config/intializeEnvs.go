@@ -4,21 +4,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	godotenv "github.com/joho/godotenv"
 )
 
 type Config struct {
-	RabbitMqURL   string
-	RabbitMqQueue string
-	AwsBucketName string
+	RabbitMqURL    string
+	RabbitMqQueues []string
+	AwsBucketName  string
+	DbURL          string
 }
 
-func NewConfig(url string, queueName string, bucketName string) *Config {
+func NewConfig(url string, queueNames []string, bucketName string, dbUrl string) *Config {
 	return &Config{
-		RabbitMqURL:   url,
-		RabbitMqQueue: queueName,
-		AwsBucketName: bucketName,
+		RabbitMqURL:    url,
+		RabbitMqQueues: queueNames,
+		AwsBucketName:  bucketName,
+		DbURL:          dbUrl,
 	}
 }
 func InitializeEnvs() (*Config, error) {
@@ -36,15 +39,21 @@ func InitializeEnvs() (*Config, error) {
 	}
 
 	url := os.Getenv("RABBITMQ_URL")
-	queue := os.Getenv("RABBITMQ_QUEUE")
+	queues := os.Getenv("RABBITMQ_QUEUES")
 	aws_region := os.Getenv("AWS_REGION")
 	aws_access_key_id := os.Getenv("AWS_ACCESS_KEY_ID")
 	aws_secret_access_key := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	aws_bucket_name := os.Getenv("AWS_BUCKET_NAME")
+	db_url := os.Getenv("DATABASE_URL")
 
-	if url == "" || queue == "" || aws_region == "" || aws_access_key_id == "" || aws_secret_access_key == "" || aws_bucket_name == "" {
-		return nil, fmt.Errorf("RABBITMQ_URL or RABBITMQ_QUEUE or AWS_REGION or AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY or AWS_BUCKET_NAME is missing")
+	fmt.Println("Printing", url, queues, aws_region, aws_access_key_id, aws_secret_access_key)
+	if url == "" || queues == "" || aws_region == "" || aws_access_key_id == "" || aws_secret_access_key == "" || aws_bucket_name == "" || db_url == "" {
+		return nil, fmt.Errorf("RABBITMQ_URL or RABBITMQ_QUEUES or AWS_REGION or AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY or AWS_BUCKET_NAME or DB_URL is missing")
 	}
-	config := NewConfig(url, queue, aws_bucket_name)
+	queuesArray := strings.Split(queues, ",")
+	for i := range queuesArray {
+		queuesArray[i] = strings.TrimSpace(queuesArray[i])
+	}
+	config := NewConfig(url, queuesArray, aws_bucket_name, db_url)
 	return config, nil
 }

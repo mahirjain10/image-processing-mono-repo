@@ -25,6 +25,10 @@ func NewS3Service(client *s3.Client, bucketName string, rawDownloadPath string) 
 	return &S3Service{client: client, bucketName: bucketName, rawDownloadPath: rawDownloadPath}
 }
 
+func (s3Service *S3Service) GetDependencyData() (string, string) {
+	return s3Service.bucketName, s3Service.rawDownloadPath
+}
+
 // Creation of individual context leads to cancellation of individual downloads
 // Create a child context from parent context so that we can cancel inflights download when app shutsdown
 
@@ -37,7 +41,7 @@ func (service *S3Service) S3ObjectDownload(ctx context.Context, key string) erro
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return fmt.Errorf("couldn't download object with key: %s", key)
+		return fmt.Errorf("couldn't download object with key: %s, AWS error: %w", key, err)
 	}
 	defer resp.Body.Close()
 
