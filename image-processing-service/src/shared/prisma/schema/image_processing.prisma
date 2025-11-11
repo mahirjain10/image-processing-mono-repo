@@ -1,25 +1,36 @@
 model ImageProcessing {
-  id              String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  userId          String   @map("user_id")
-  user            User     @relation(fields: [userId], references: [id], name: "UserToImages")
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], name: "UserToImages")
 
-  filename        String
-  s3RawKey        String?  @map("s3_raw_key")
-  s3ProcessedKey  String?  @map("s3_processed_key")
-  status          STATUS
+  filename       String
+  s3RawKey       String? @map("s3_raw_key")
+  s3ProcessedKey String? @map("s3_processed_key")
+  status         STATUS
 
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @default(now()) @map("updated_at")
+  transformationType       TRANSFORMATION_TYPE @map("transform_type")
+  transformationParameters Json                @map("transform_parameters")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  errorMessage String? @map("error_message")
 
   @@map("image_processing")
 }
 
-
 enum STATUS {
-    PENDING
-    UPLOADING
-    PROCESSING
-    PROCESSED
-    FAILED
+  PENDING
+  UPLOADING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum TRANSFORMATION_TYPE {
+  ROTATE
+  RESIZE
+  FORCE_RESIZE
+  CONVERT
 }

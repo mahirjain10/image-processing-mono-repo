@@ -10,8 +10,8 @@ export class CronsService {
     private readonly logger: LoggerService
     constructor(private readonly prismaService: PrismaService, private readonly configService: ConfigService, @Inject('S3_CLIENT') private readonly s3Client: S3Client) { }
 
-    @Cron(CronExpression.EVERY_10_SECONDS)
-    async checkStuckUploads() {
-        await handleS3KeysStatusJob(this.prismaService, this.configService,this.s3Client);
-    }
+    // @Cron(CronExpression.EVERY_10_SECONDS)
+    // async checkStuckUploads() {
+    //     await handleS3KeysStatusJob(this.prismaService, this.configService,this.s3Client);
+    // }
 }

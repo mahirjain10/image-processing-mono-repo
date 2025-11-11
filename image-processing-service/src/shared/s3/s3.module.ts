@@ -21,7 +21,7 @@ export class S3Module {
           region,
           credentials: { accessKeyId, secretAccessKey },
         });
-      }, // ✅ removed stray semicolon
+      }, 
     };
 
     return {

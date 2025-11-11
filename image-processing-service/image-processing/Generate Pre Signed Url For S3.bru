@@ -5,18 +5,55 @@ meta {
 }
 
 post {
-  url: http://localhost:3000/upload/generate-url
+  url: {{local-base-url}}/upload/url
   body: json
   auth: none
 }
 
 headers {
-  Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImZlZTRmYTQyLTRhZjQtNDY1Ni1iMDY0LTdjNmYxMTczZDU5YyIsImVtYWlsIjoibWFzc2hzaXNzc3Jzc3Nzc3NzQGdtYWlsLmNvbSIsImlhdCI6MTc2MTgxNjg1NSwiZXhwIjoxNzYxODE4NjU1fQ.2xcEtmqGSgn3nU_Q8LfRk76TxS1Tm4myeSdiHmWRXz8; Path=/; Expires=Thu, 30 Oct 2025 10:34:15 GMT; HttpOnly; Secure; SameSite=Strict
+  Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjRlM2MxNjNmLTI5YWQtNDE5YS05OTQzLTUzOTE4NmJlYzliNiIsImVtYWlsIjoibWFzc2hzaXNzc3Jzc3Nzc3NzQGdtYWlsLmNvbSIsImlhdCI6MTc2MjAxMDUzOCwiZXhwIjoxNzYyMDEyMzM4fQ.-GWnUH7EhYGPAztPDjHRcmx0cQjCT1sm488AWe4rnSg; Path=/; Expires=Sat, 01 Nov 2025 16:22:18 GMT; HttpOnly; Secure; SameSite=Strict
 }
 
 body:json {
   {
-    "key":"/hello.png",
-    "mimeType":"image/jpeg"
+    "filename":"hello.png",
+    "mimeType":"image/jpeg",
+    "transformationType":"RESIZE",
+    "transformationParamters":{
+      "height":100,
+       "width":100
+    }
   }
+}
+
+vars:pre-request {
+  : 
+}
+
+script:pre-request {
+  // Get saved auth token variable
+  const token = bru.getVar('auth_token');
+  
+  if (token) {
+    // Set the Cookie header for the current request
+    req.setHeader('Cookie', `token=${token}`);
+    console.log('🍪 Cookie header set from auth_token');
+  } else {
+    console.log('⚠️ No auth_token found — cookie header not set');
+  }
+  
+}
+
+script:post-response {
+  const presigned_url = res.body.data.preSignedUrl;
+  
+  if (res.status === 201 && presigned_url) {
+    bru.setEnvVar('presigned-url', presigned_url);
+    console.log('✅ Presigned URL saved to env var');
+  } else {
+    console.log('❌ Failed to set Presigned URL');
+    console.log('Status:', res.status);
+    console.log('URL:', presigned_url);
+  }
+  
 }

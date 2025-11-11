@@ -4,8 +4,12 @@ meta {
   seq: 4
 }
 
-get {
-  url: 
-  body: none
+put {
+  url: {{presigned-url}}
+  body: file
   auth: none
+}
+
+body:file {
+  file: @file(C:\Users\Mahir\Downloads\canvas (2).jpg) @contentType(image/jpeg)
 }

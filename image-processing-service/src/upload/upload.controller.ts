@@ -61,13 +61,15 @@ export class UploadController {
     ) {
         this.logger.log('Generate presigned URL request received');
 
-        const { filename, mimeType } = body;
+        const { filename, mimeType ,transformationType,transformationParamters} = body;
         const userId = req.user.id; 
 
         const presignData = await this.uploadService.generatePresignedUrl(
             userId,
             filename,
             mimeType,
+            transformationType,
+            transformationParamters
         );
 
         this.logger.log(`Presigned URL generated for file: ${filename}`);

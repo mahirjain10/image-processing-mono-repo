@@ -14,5 +14,9 @@ export default () => ({
     bucket:process.env.AWS_BUCKET_NAME,
     accessKeyId:process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey:process.env.AWS_SECRET_ACCESS_KEY
+  },
+  rabbitmq:{
+    url:process.env.RABBITMQ_URL,
+    queue:process.env.RABBITMQ_QUEUE
   }
 });

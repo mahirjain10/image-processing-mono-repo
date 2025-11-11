@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: http://0.0.0.0:3000/auth/login
+  url: {{local-base-url}}/auth/login
   body: json
   auth: none
 }
@@ -18,7 +18,26 @@ body:json {
 }
 
 script:post-response {
-  const token = res.headers.cookies
+  // Get cookies from response headers
+  const cookies = res.headers['set-cookie'];
   
+  // Extract token cookie (adjust the name to your cookie)
+  if (cookies) {
+    const tokenCookie = cookies.find(c => c.startsWith('token='));
+  
+    if (tokenCookie) {
+      // Extract only the cookie value before semicolon
+      const tokenValue = tokenCookie.split(';')[0].split('=')[1];
+  
+      // Save it as a global variable for later use
+      bru.setVar('auth_token', tokenValue);
+  
+      console.log('Token saved to variable: auth_token');
+    } else {
+      console.log('Token cookie not found.');
+    }
+  } else {
+    console.log('No cookies in response.');
+  }
   
 }
