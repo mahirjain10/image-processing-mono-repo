@@ -1,40 +1,41 @@
 package aws
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/mahirjain10/go-workers/internal/utils"
 )
 
 // Creating Dependency
 type S3Service struct {
-	client             *s3.Client
-	bucketName         string
-	downloadUploadPath string
-	s3Manager          *manager.Uploader
+	client       *s3.Client
+	bucketName   string
+	uploadPath   string
+	downloadPath string
 }
 
 // Using Constructor Pattern to initalize our s3Service
-func NewS3Service(client *s3.Client, bucketName string, rawDownloadPath string, s3Manager *manager.Uploader) *S3Service {
-	return &S3Service{client: client, bucketName: bucketName, downloadUploadPath: rawDownloadPath, s3Manager: s3Manager}
+func NewS3Service(client *s3.Client, bucketName string, downloadPath string, uploadPath string) *S3Service {
+	return &S3Service{client: client, bucketName: bucketName, downloadPath: downloadPath, uploadPath: uploadPath}
 }
 
-func (s3Service *S3Service) GetDependencyData() (string, string) {
-	return s3Service.bucketName, s3Service.downloadUploadPath
+func (s3Service *S3Service) GetDependencyData() (string, string, string) {
+	return s3Service.bucketName, s3Service.downloadPath, s3Service.uploadPath
 }
 
 // Creation of individual context leads to cancellation of individual downloads
 // Create a child context from parent context so that we can cancel inflights download when app shutsdown
 
-func (service *S3Service) S3ObjectDownload(ctx context.Context, key string) error {
+func (service *S3Service) DownloadFromS3Object(ctx context.Context, key string) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -48,13 +49,16 @@ func (service *S3Service) S3ObjectDownload(ctx context.Context, key string) erro
 	defer resp.Body.Close()
 
 	// Create full file path including all nested directories from the key
-	filePath := filepath.Join(service.downloadUploadPath, key)
+	// filePath := filepath.Join(service.downloadUploadPath, key)
 
-	// Create all parent directories
-	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create directories: %w", err)
+	// // Create all parent directories
+	// if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+	// 	return fmt.Errorf("failed to create directories: %w", err)
+	// }
+	filePath, err := utils.PathUtil(service.downloadPath, key)
+	if err != nil {
+		return err
 	}
-
 	outFile, err := os.Create(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
@@ -69,19 +73,50 @@ func (service *S3Service) S3ObjectDownload(ctx context.Context, key string) erro
 	return nil
 }
 
-// func (service *S3Service) UploadtoS3Object(key string) error {
-// 	filePath := filepath.Join(service.downloadUploadPath, key)
+func (service *S3Service) UploadtoS3Object(parentCtx context.Context, key string) (string, error) {
 
-// 	// Create all parent directories
-// 	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-// 		return fmt.Errorf("failed to create directories: %w", err)
-// 	}
-// 	var outKey string
-// 	input := &s3.PutObjectInput{
-// 		Bucket:            aws.String(service.bucketName),
-// 		Key:               aws.String(key),
-// 		Body:              bytes.NewReader([]byte(contents)),
-// 		ChecksumAlgorithm: types.ChecksumAlgorithmSha256,
-// 	}
-// 	return nil
-// }
+	ctx, cancel := context.WithTimeout(parentCtx, 1*time.Minute)
+	defer cancel()
+
+	var publicUrl string = ""
+
+	// Create filepath
+	filePath, err := utils.PathUtil(service.uploadPath, key)
+	if err != nil {
+		return publicUrl, err
+	}
+	log.Printf("file ptah while uploading: %v", filePath)
+	// Read imagebuffer or return error
+	imageBuffer, err := utils.ReadImageBuffer(filePath)
+	if err != nil {
+		return publicUrl, err
+	}
+	log.Println("key :", key)
+
+	// Input Options
+	input := &s3.PutObjectInput{
+		Bucket:            aws.String(service.bucketName),
+		Key:               aws.String(key),
+		Body:              bytes.NewReader(imageBuffer),
+		ChecksumAlgorithm: types.ChecksumAlgorithmSha256,
+		// ACL:               types.ObjectCannedACLPublicRead,
+	}
+	_, err = service.client.PutObject(ctx, input)
+	if err != nil {
+		return "", err
+	}
+
+	// Step 2: Generate a pre-signed download URL (valid for 15 min)
+	presignClient := s3.NewPresignClient(service.client)
+
+	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(service.bucketName),
+		Key:    aws.String(key),
+	}, s3.WithPresignExpires(15*time.Minute))
+	if err != nil {
+		return "", fmt.Errorf("failed to presign url: %w", err)
+	}
+
+	// Step 3: Return URL to the client
+	return req.URL, nil
+}

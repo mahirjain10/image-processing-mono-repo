@@ -2,8 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"os" // Replaced bimg with os
-	"path/filepath"
+	"os"
 )
 
 func ReadImageBuffer(imagePath string) ([]byte, error) {
@@ -15,22 +14,13 @@ func ReadImageBuffer(imagePath string) ([]byte, error) {
 	return buffer, nil
 }
 
-func WriteImageBuffer(imageBytes []byte, filename string) error {
-	outputPath := "D:/image-processing-backend/go-workers/images/processed"
+func WriteImageBuffer(pathName string, imageBytes []byte) error {
 
-	// Ensure directory exists
-	err := os.MkdirAll(outputPath, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	fullPath := filepath.Join(outputPath, filename)
-
-	err = os.WriteFile(fullPath, imageBytes, 0644)
+	err := os.WriteFile(pathName, imageBytes, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write image: %w", err)
 	}
 
-	fmt.Println("Image saved at:", fullPath)
+	fmt.Println("Image saved at:", pathName)
 	return nil
 }

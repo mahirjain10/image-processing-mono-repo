@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -142,27 +141,32 @@ func NewStatus(id string, userId string, status string) *types.Status {
 // ─── IMAGE TRANSFORMATION ─────────────────────────────────────────────────
 
 func (rabbitMqService *RabbitMqService) transformImage(imageProcessing types.ImageProcessing) error {
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("error while getting dir : %w", err)
-	}
+	// dir, err := os.Getwd()
+	// if err != nil {
+	// 	return fmt.Errorf("error while getting dir : %w", err)
+	// }
 
-	_, pathname := rabbitMqService.s3Service.GetDependencyData()
-	imagePath := filepath.Join(dir, pathname)
+	// _, pathname := rabbitMqService.s3Service.GetDependencyData()
+	// imagePath := filepath.Join(dir, pathname)
 
-	err = os.MkdirAll(imagePath, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("directory doesnt exists %w", err)
-	}
-
+	// err = os.MkdirAll(imagePath, os.ModePerm)
+	// if err != nil {
+	// 	return fmt.Errorf("directory doesnt exists %w", err)
+	// }
+	// utils.PathUtil(rabbitMqService.)
+	_, downloadPath, uploadPath := rabbitMqService.s3Service.GetDependencyData()
 	switch imageProcessing.TransformationType {
 	case "RESIZE":
 		var resize *types.Resize
 		if err := utils.ParseJSON([]byte(imageProcessing.TransformationParameters), &resize); err != nil {
 			return fmt.Errorf("failed to parse message: %w", err)
 		}
-
-		imageBuffer, err := utils.ReadImageBuffer(imagePath)
+		// filepath.Join(downloadPath, "raw")
+		updatedDownloadPath, err := utils.PathUtil(downloadPath, imageProcessing.S3RawKey)
+		if err != nil {
+			return err
+		}
+		imageBuffer, err := utils.ReadImageBuffer(updatedDownloadPath)
 		if err != nil {
 			return err
 		}
@@ -172,7 +176,13 @@ func (rabbitMqService *RabbitMqService) transformImage(imageProcessing types.Ima
 			return err
 		}
 
-		err = utils.WriteImageBuffer(transformedImageBytes, imageProcessing.FileName)
+		log.Println("split looks like ", strings.Split(imageProcessing.S3RawKey, "/"))
+		formattedUploadPath, err := utils.PathUtil(path.Join(uploadPath, "processed"), strings.Split(imageProcessing.S3RawKey, "/")[1])
+		log.Printf("formatted path :%s", formattedUploadPath)
+		if err != nil {
+			return err
+		}
+		err = utils.WriteImageBuffer(formattedUploadPath, transformedImageBytes)
 		if err != nil {
 			return err
 		}
@@ -188,7 +198,8 @@ func (rabbitMqService *RabbitMqService) transformImage(imageProcessing types.Ima
 
 func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d amqp.Delivery) error {
 	log.Printf("Received message: %s", d.Body)
-
+	var publicUrl = ""
+	// _, _, uploadPath := rabbitMqService.s3Service.GetDependencyData()
 	var rabbitMqMessage *types.RabbitMQMessage
 	if err := utils.ParseJSON(d.Body, &rabbitMqMessage); err != nil {
 		return fmt.Errorf("failed to parse message: %w", err)
@@ -200,9 +211,22 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 		log.Printf("Message created at: %s, processing now - check for delays", rabbitMqMessage.Data.CreatedAt)
 	}
 
-	if err := rabbitMqService.s3Service.S3ObjectDownload(ctx, rabbitMqMessage.Data.S3RawKey); err != nil {
-		log.Printf("error while downloading s3 object :%v", err)
-		return fmt.Errorf("failed to download S3 object: %w", err)
+	for i := 0; i < 3; i++ {
+		err := rabbitMqService.s3Service.DownloadFromS3Object(ctx, rabbitMqMessage.Data.S3RawKey)
+		if err == nil {
+			// break out early if success
+			break
+		}
+
+		log.Printf("%d try: error while downloading S3 object: %v", i+1, err)
+
+		// last empty ? return error
+		if i == 2 {
+			return fmt.Errorf("failed to download S3 object after 3 tries: %w", err)
+		}
+
+		// backoff
+		time.Sleep(2 * time.Second)
 	}
 
 	log.Printf("Successfully processed object: %s", rabbitMqMessage.Data.S3ProcessedKey)
@@ -212,13 +236,23 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 		log.Printf("error while transforming image:%v", err)
 		return err
 	}
+	splitString := strings.Split(rabbitMqMessage.Data.S3RawKey, "/")
+	formattedKey := fmt.Sprintf("processed/%s", splitString[1])
 
-	statusMsg := map[string]string{
-		"id":     rabbitMqMessage.Data.Id,
-		"userId": rabbitMqMessage.Data.UserId,
-		"status": "completed",
+	for i := 0; i < 3; i++ {
+		publicUrl, err = rabbitMqService.s3Service.UploadtoS3Object(ctx, formattedKey)
+		log.Printf("i:%d Public URL: %s and err: %v", i, publicUrl, err)
+		if err == nil {
+			break
+		}
+
 	}
-
+	statusMsg := map[string]string{
+		"id":        rabbitMqMessage.Data.Id,
+		"userId":    rabbitMqMessage.Data.UserId,
+		"status":    "completed",
+		"publicUrl": publicUrl,
+	}
 	if err := rabbitMqService.PublishToChannel(ctx, statusMsg); err != nil {
 		return fmt.Errorf("failed to publish status message: %w", err)
 	}
@@ -251,6 +285,10 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 
 		if q == "status_queue" {
 			rabbitMqService.statusQueueChannel = ch
+			if err = rabbitMqService.DeclareExchange(); err != nil {
+				// return nil, err
+				log.Fatalf("Failed to delcare exchange: %v", err)
+			}
 			log.Println("started queue and channel for status queue,skipping the consuming")
 			continue
 		}

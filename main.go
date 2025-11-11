@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/mahirjain10/go-workers/config"
 	"github.com/mahirjain10/go-workers/internal/aws"
 	"github.com/mahirjain10/go-workers/internal/queue"
@@ -14,13 +14,11 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-const downloadPath = "images"
-
 type App struct {
 	config       *config.Config
 	rabbitMqConn *amqp.Connection
 	// channel         *amqp.Channel
-	s3Client        *s3.Client
+	// s3Client        *s3.Client
 	s3Service       *aws.S3Service
 	rabbitMqService *queue.RabbitMqService
 }
@@ -41,10 +39,16 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	// Create S3 client and service
 	s3Client := aws.NewS3Client(awsConfig)
-	// Create a uploader
-	uploader := manager.NewUploader(s3Client)
+
 	// Path relative to working directory
-	s3Service := aws.NewS3Service(s3Client, envConfig.AwsBucketName, downloadPath, uploader)
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("couldnt get directory: %v", err)
+	}
+	downloadPath := filepath.Join(dir, "images")
+	uploadPath := filepath.Join(dir, "images")
+
+	s3Service := aws.NewS3Service(s3Client, envConfig.AwsBucketName, downloadPath, uploadPath)
 
 	// Connect to RabbitMQ
 	conn, err := queue.NewRabbitMQClient(envConfig.RabbitMqURL)
@@ -54,15 +58,17 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	// Initialize RabbitMQ service (no need to create channel here)
 	rabbitMqService := queue.NewRabbitMqService(s3Service, conn, envConfig)
+	log.Printf("rabbit mq service init : %v", rabbitMqService)
+
 	// Declaring Exchnage for status
-	if err = rabbitMqService.DeclareExchange(); err != nil {
-		return nil, err
-	}
+	// if err = rabbitMqService.DeclareExchange(); err != nil {
+	// 	return nil, err
+	// }
 	// Return the fully initialized App
 	return &App{
-		config:          envConfig,
-		rabbitMqConn:    conn,
-		s3Client:        s3Client,
+		config:       envConfig,
+		rabbitMqConn: conn,
+		// s3Client:        s3Client,
 		s3Service:       s3Service,
 		rabbitMqService: rabbitMqService,
 	}, nil
@@ -91,6 +97,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
+	log.Printf("loging app: %v", app)
 	// defer app.Close()
 
 	log.Println("Application initialized successfully")
