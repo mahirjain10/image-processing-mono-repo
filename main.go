@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/mahirjain10/go-workers/config"
 	"github.com/mahirjain10/go-workers/internal/aws"
@@ -12,6 +13,8 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+const downloadPath = "images"
 
 type App struct {
 	config       *config.Config
@@ -38,8 +41,10 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	// Create S3 client and service
 	s3Client := aws.NewS3Client(awsConfig)
-	downloadPath := "images" // Path relative to working directory
-	s3Service := aws.NewS3Service(s3Client, envConfig.AwsBucketName, downloadPath)
+	// Create a uploader
+	uploader := manager.NewUploader(s3Client)
+	// Path relative to working directory
+	s3Service := aws.NewS3Service(s3Client, envConfig.AwsBucketName, downloadPath, uploader)
 
 	// Connect to RabbitMQ
 	conn, err := queue.NewRabbitMQClient(envConfig.RabbitMqURL)
@@ -49,7 +54,10 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	// Initialize RabbitMQ service (no need to create channel here)
 	rabbitMqService := queue.NewRabbitMqService(s3Service, conn, envConfig)
-
+	// Declaring Exchnage for status
+	if err = rabbitMqService.DeclareExchange(); err != nil {
+		return nil, err
+	}
 	// Return the fully initialized App
 	return &App{
 		config:          envConfig,

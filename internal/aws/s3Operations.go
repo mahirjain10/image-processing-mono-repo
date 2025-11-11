@@ -10,23 +10,25 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 // Creating Dependency
 type S3Service struct {
-	client          *s3.Client
-	bucketName      string
-	rawDownloadPath string
+	client             *s3.Client
+	bucketName         string
+	downloadUploadPath string
+	s3Manager          *manager.Uploader
 }
 
 // Using Constructor Pattern to initalize our s3Service
-func NewS3Service(client *s3.Client, bucketName string, rawDownloadPath string) *S3Service {
-	return &S3Service{client: client, bucketName: bucketName, rawDownloadPath: rawDownloadPath}
+func NewS3Service(client *s3.Client, bucketName string, rawDownloadPath string, s3Manager *manager.Uploader) *S3Service {
+	return &S3Service{client: client, bucketName: bucketName, downloadUploadPath: rawDownloadPath, s3Manager: s3Manager}
 }
 
 func (s3Service *S3Service) GetDependencyData() (string, string) {
-	return s3Service.bucketName, s3Service.rawDownloadPath
+	return s3Service.bucketName, s3Service.downloadUploadPath
 }
 
 // Creation of individual context leads to cancellation of individual downloads
@@ -46,7 +48,7 @@ func (service *S3Service) S3ObjectDownload(ctx context.Context, key string) erro
 	defer resp.Body.Close()
 
 	// Create full file path including all nested directories from the key
-	filePath := filepath.Join(service.rawDownloadPath, key)
+	filePath := filepath.Join(service.downloadUploadPath, key)
 
 	// Create all parent directories
 	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
@@ -66,3 +68,20 @@ func (service *S3Service) S3ObjectDownload(ctx context.Context, key string) erro
 	log.Println("download success")
 	return nil
 }
+
+// func (service *S3Service) UploadtoS3Object(key string) error {
+// 	filePath := filepath.Join(service.downloadUploadPath, key)
+
+// 	// Create all parent directories
+// 	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+// 		return fmt.Errorf("failed to create directories: %w", err)
+// 	}
+// 	var outKey string
+// 	input := &s3.PutObjectInput{
+// 		Bucket:            aws.String(service.bucketName),
+// 		Key:               aws.String(key),
+// 		Body:              bytes.NewReader([]byte(contents)),
+// 		ChecksumAlgorithm: types.ChecksumAlgorithmSha256,
+// 	}
+// 	return nil
+// }

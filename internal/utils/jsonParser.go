@@ -11,3 +11,11 @@ func ParseJSON(data []byte, v any) error {
 	}
 	return nil
 }
+
+func SerializeJSON(data map[string]string) ([]byte, error) {
+	value, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return value, err
+}
