@@ -30,6 +30,7 @@ export class RabbitmqModule {
           return {
             transport: Transport.RMQ,
             options: {
+              // routingKey: queue === 'status_queue' ? 'status' : '',
               exchange: 'image_processing',
               urls: [rmqUrl],
               queue,

@@ -12,6 +12,7 @@ import { CronsModule } from '@shared/crons/crons.module';
 import { WebhookModule } from '@webhook/webhook.module';
 import { SnsModule } from './sns/sns.module';
 import { RabbitmqModule } from '@rabbitmq/rabbitmq.module';
+import { StatusModule } from './status/status.module';
 
 @Module({
   imports: [
@@ -58,13 +59,14 @@ import { RabbitmqModule } from '@rabbitmq/rabbitmq.module';
         durable: true,
         prefetchCount: 5,
       },
-      {
-        name: 'STATUS_QUEUE',
-        queue: 'status_queue',
-        durable: true,
-        prefetchCount: 5,
-      },
+      // {
+      //   name: 'STATUS_QUEUE',
+      //   queue: 'status_queue',
+      //   durable: true,
+      //   prefetchCount: 5,
+      // },
     ]),
+    StatusModule,
   ],
   providers: [AppService],
   controllers: [AppController],

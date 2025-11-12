@@ -20,29 +20,33 @@ const bootstrap = async () => {
   // app.get => asking dependency manually from the DI container
   const httpAdapter = app.get(HttpAdapterHost);
   const configService = app.get(ConfigService);
-  
+
   await app.register(fastifyCookie);
-  
+
   app.useGlobalFilters(new CatchEverythingFilter(httpAdapter, configService));
-  app.useGlobalPipes(new ValidationPipe({
-     whitelist: false,
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: false,
       transform: true, // <--- THIS is the key
       forbidNonWhitelisted: false,
-  }))
-  // app.connectMicroservice<MicroserviceOptions>({
-  //   transport: Transport.RMQ,
-  //   options: {
-  //     urls: ['amqp://localhost:5672'],
-  //     queue: 'image_processing_queue',
-  //     queueOptions: {
-  //       durable: false, // false = keep queue in memeory and true = save data to the disk
-  //     },
-  //     noAck:false,
-  //     persistent:true,
-  //     exchange:'image-processing'
-  //   },
-  // });
-  // await app.startAllMicroservices();
+    }),
+  );
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: ['amqp://localhost:5672'],
+      queue: 'status_queue',
+      exchangeType: 'direct',
+      queueOptions: {
+        durable: true, // false = keep queue in memeory and true = save data to the disk
+      },
+      noAck: false,
+      persistent: true,
+      exchange: 'image_processing',
+      routingKey: 'status',
+    },
+  });
+  await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 };
 bootstrap();
