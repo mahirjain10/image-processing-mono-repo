@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "./dist",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2022",
+    "sourceMap": true,
+    "baseUrl": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@rabbitmq/*": ["src/shared/rabbitmq/*"],
+      "@config/*": ["src/config/*"],
+      "@shared/*": ["src/shared/*"],
+      "@auth/interface/*": ["src/auth/interface/*"],
+      "@auth/constants/*": ["src/auth/constants/*"],
+      "@auth/dto/*": ["src/auth/dto/*"],
+      "@auth/*": ["src/auth/*"],
+      "@webhook/*": ["src/webhook/*"],
+
+      "@prisma/*": ["src/shared/prisma/*"],
+      "@prisma-client": ["src/shared/prisma/generated/client"],
+
+      "@src/*": ["src/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "./types"], // Adjust if needed
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

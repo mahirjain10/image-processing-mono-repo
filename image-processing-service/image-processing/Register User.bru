@@ -1,0 +1,45 @@
+meta {
+  name: Register User
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{local-base-url}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name":"Mahir",
+    "email":"masshsisssrsssssss@gmail.com",
+    "password":"mahirjain30@"
+  }  
+  
+}
+
+script:post-response {
+  // Get cookies from response headers
+  const cookies = res.headers['set-cookie'];
+  
+  // Extract token cookie (adjust the name to your cookie)
+  if (cookies) {
+    const tokenCookie = cookies.find(c => c.startsWith('token='));
+  
+    if (tokenCookie) {
+      // Extract only the cookie value before semicolon
+      const tokenValue = tokenCookie.split(';')[0].split('=')[1];
+  
+      // Save it as a global variable for later use
+      bru.setVar('auth_token', tokenValue);
+  
+      console.log('Token saved to variable: auth_token');
+    } else {
+      console.log('Token cookie not found.');
+    }
+  } else {
+    console.log('No cookies in response.');
+  }
+  
+}

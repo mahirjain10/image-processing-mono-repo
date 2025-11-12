@@ -1,0 +1,20 @@
+meta {
+  name: Update Upload Status
+  type: http
+  seq: 6
+}
+
+patch {
+  url: http://localhost:3000/upload/status?id=90ea61be-a154-4126-b9ea-3b41d32799c5&status=UPLOADING
+  body: none
+  auth: none
+}
+
+query {
+  id: 90ea61be-a154-4126-b9ea-3b41d32799c5
+  status: UPLOADING
+}
+
+headers {
+  Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjRlM2MxNjNmLTI5YWQtNDE5YS05OTQzLTUzOTE4NmJlYzliNiIsImVtYWlsIjoibWFzc2hzaXNzc3Jzc3Nzc3NzQGdtYWlsLmNvbSIsImlhdCI6MTc2MjAwNjE0OCwiZXhwIjoxNzYyMDA3OTQ4fQ.IN59XZVVKsbUjapOmqbCcgiQCkovzv4eWczYJrkvjb0; Path=/; Expires=Sat, 01 Nov 2025 15:09:08 GMT; HttpOnly; Secure; SameSite=Strict
+}
