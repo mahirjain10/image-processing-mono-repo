@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { StatusService } from './status.service';
 import { RabbitmqModule } from '../shared/rabbitmq/rabbitmq.module';
+import { PrismaModule } from '@shared/prisma/prisma.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { RabbitmqModule } from '../shared/rabbitmq/rabbitmq.module';
         durable: true,
       },
     ]),
+    PrismaModule
   ],
   providers: [StatusService],
   controllers: [StatusService],

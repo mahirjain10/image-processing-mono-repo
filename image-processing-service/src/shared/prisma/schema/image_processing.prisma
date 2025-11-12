@@ -4,10 +4,10 @@ model ImageProcessing {
   userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id], name: "UserToImages")
 
-  filename       String
-  s3RawKey       String? @map("s3_raw_key")
-  s3ProcessedKey String? @map("s3_processed_key")
-  status         STATUS
+  filename  String
+  s3RawKey  String? @map("s3_raw_key")
+  publicUrl String? @map("public_url")
+  status    STATUS
 
   transformationType       TRANSFORMATION_TYPE @map("transform_type")
   transformationParameters Json                @map("transform_parameters")
