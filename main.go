@@ -10,6 +10,7 @@ import (
 	"github.com/mahirjain10/go-workers/config"
 	"github.com/mahirjain10/go-workers/internal/aws"
 	"github.com/mahirjain10/go-workers/internal/queue"
+	"github.com/mahirjain10/go-workers/internal/utils"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -51,7 +52,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	s3Service := aws.NewS3Service(s3Client, envConfig.AwsBucketName, downloadPath, uploadPath)
 
 	// Connect to RabbitMQ
-	conn, err := queue.NewRabbitMQClient(envConfig.RabbitMqURL)
+	conn, err := utils.NewRabbitMQClient(envConfig.RabbitMqURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
@@ -61,7 +62,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	log.Printf("rabbit mq service init : %v", rabbitMqService)
 
 	// Declaring Exchnage for status
-	// if err = rabbitMqService.DeclareExchange(); err != nil {
+	// if err = rabbitMqService.declareExchange(); err != nil {
 	// 	return nil, err
 	// }
 	// Return the fully initialized App

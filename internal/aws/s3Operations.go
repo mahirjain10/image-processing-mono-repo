@@ -75,6 +75,8 @@ func (service *S3Service) DownloadFromS3Object(ctx context.Context, key string) 
 
 func (service *S3Service) UploadtoS3Object(parentCtx context.Context, key string) (string, error) {
 
+	// return "",fmt.Errorf("error") // To test if we are failure is working or not
+
 	ctx, cancel := context.WithTimeout(parentCtx, 1*time.Minute)
 	defer cancel()
 
