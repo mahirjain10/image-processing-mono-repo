@@ -1,0 +1,58 @@
+meta {
+  name: Generate Pre Signed Url For S3 Convert
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{local-base-url}}/upload/url
+  body: json
+  auth: none
+}
+
+headers {
+  Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjRlM2MxNjNmLTI5YWQtNDE5YS05OTQzLTUzOTE4NmJlYzliNiIsImVtYWlsIjoibWFzc2hzaXNzc3Jzc3Nzc3NzQGdtYWlsLmNvbSIsImlhdCI6MTc2MjAxMDUzOCwiZXhwIjoxNzYyMDEyMzM4fQ.-GWnUH7EhYGPAztPDjHRcmx0cQjCT1sm488AWe4rnSg; Path=/; Expires=Sat, 01 Nov 2025 16:22:18 GMT; HttpOnly; Secure; SameSite=Strict
+}
+
+body:json {
+  {
+    "filename":"mylovemeowmeow.png",
+    "mimeType":"image/jpeg",
+    "transformationType":"CONVERT",
+    "transformationParamters":{
+        "format":"png"
+    }
+  }
+}
+
+vars:pre-request {
+  : 
+}
+
+script:pre-request {
+  // Get saved auth token variable
+  const token = bru.getVar('auth_token');
+  
+  if (token) {
+    // Set the Cookie header for the current request
+    req.setHeader('Cookie', `token=${token}`);
+    console.log('🍪 Cookie header set from auth_token');
+  } else {
+    console.log('⚠️ No auth_token found — cookie header not set');
+  }
+  
+}
+
+script:post-response {
+  const presigned_url = res.body.data.preSignedUrl;
+  
+  if (res.status === 201 && presigned_url) {
+    bru.setEnvVar('presigned-url', presigned_url);
+    console.log('✅ Presigned URL saved to env var');
+  } else {
+    console.log('❌ Failed to set Presigned URL');
+    console.log('Status:', res.status);
+    console.log('URL:', presigned_url);
+  }
+  
+}
