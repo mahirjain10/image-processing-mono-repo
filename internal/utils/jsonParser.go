@@ -12,7 +12,7 @@ func ParseJSON(data []byte, v any) error {
 	return nil
 }
 
-func SerializeJSON(data map[string]string) ([]byte, error) {
+func SerializeJSON(data interface{}) ([]byte, error) {
 	value, err := json.Marshal(data)
 	if err != nil {
 		return nil, err

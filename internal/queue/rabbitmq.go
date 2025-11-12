@@ -101,7 +101,7 @@ func (rabbitMqService *RabbitMqService) DeclareExchange() error {
 
 // ─── MESSAGE PUBLISHING ───────────────────────────────────────────────────
 
-func (rabbitMqService *RabbitMqService) PublishToChannel(ctx context.Context, message map[string]string) error {
+func (rabbitMqService *RabbitMqService) PublishToChannel(ctx context.Context, message interface{}) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -111,8 +111,8 @@ func (rabbitMqService *RabbitMqService) PublishToChannel(ctx context.Context, me
 	}
 
 	err = rabbitMqService.statusQueueChannel.PublishWithContext(ctx,
-		"status_exchange",
-		"",
+		"image_processing",
+		"status", // routing key
 		true,
 		false,
 		amqp.Publishing{
@@ -122,6 +122,7 @@ func (rabbitMqService *RabbitMqService) PublishToChannel(ctx context.Context, me
 	if err != nil {
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
+	log.Println("Pushed to status queue")
 	return nil
 }
 
@@ -247,11 +248,20 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 		}
 
 	}
-	statusMsg := map[string]string{
+	status := "PROCESSED"
+	if err != nil {
+		status = "FAILED"
+	}
+	// Format message for NestJS microservice consumption
+	statusData := map[string]string{
 		"id":        rabbitMqMessage.Data.Id,
 		"userId":    rabbitMqMessage.Data.UserId,
-		"status":    "completed",
+		"status":    status,
 		"publicUrl": publicUrl,
+	}
+	statusMsg := map[string]interface{}{
+		"pattern": "status",
+		"data":    statusData,
 	}
 	if err := rabbitMqService.PublishToChannel(ctx, statusMsg); err != nil {
 		return fmt.Errorf("failed to publish status message: %w", err)
@@ -289,6 +299,17 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 				// return nil, err
 				log.Fatalf("Failed to delcare exchange: %v", err)
 			}
+			// Add queue binding
+			err = ch.QueueBind(
+				"status_queue",     // queue name
+				"status",           // routing key
+				"image_processing", // exchange
+				false,              // no-wait
+				nil,                // arguments
+			)
+			if err != nil {
+				log.Fatalf("Failed to bind status queue: %v", err)
+			}
 			log.Println("started queue and channel for status queue,skipping the consuming")
 			continue
 		}
@@ -313,6 +334,7 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 						if !ok {
 							log.Printf("[%s] Channel closed, reconnecting...", q)
 							time.Sleep(5 * time.Second)
+							// rabbitMqService.Start(conn, ctx)
 							break
 						}
 
