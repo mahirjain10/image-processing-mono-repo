@@ -26,9 +26,11 @@ const bootstrap = async () => {
   app.useGlobalFilters(new CatchEverythingFilter(httpAdapter, configService));
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: false,
-      transform: true, // <--- THIS is the key
-      forbidNonWhitelisted: false,
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      skipMissingProperties: false,
+      validateCustomDecorators: true
     }),
   );
   app.connectMicroservice<MicroserviceOptions>({

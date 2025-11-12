@@ -31,7 +31,7 @@ export class UploadService {
     @Inject('S3_CLIENT') private readonly s3Client: S3Client,
     private readonly configService: ConfigService,
     private readonly prismaService: PrismaService,
-  ) {}
+  ) { }
 
   public async updateImageProcessingStatus(
     id: string,
@@ -69,7 +69,12 @@ export class UploadService {
     filename: string,
     mimeType: string,
     transformationType: TRANSFORMATION_TYPE,
-    transformationParamters: TransformationParamters,
+    transformationParamters: {
+      height?: number,
+      width?: number,
+      degree?: number,
+      format?: string,
+    },
   ) {
     // 1. Create image record before upload
     const imageRecord = await this.imageProcessingDb.create({

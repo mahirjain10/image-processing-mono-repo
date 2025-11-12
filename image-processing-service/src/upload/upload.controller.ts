@@ -16,7 +16,8 @@ import { UploadService } from './upload.service';
 import { AuthGuard } from '@shared/guards/auth.guard';
 import { AuthRequest } from '@shared/interface/AuthRequest.interface';
 import { STATUS } from './constants/upload.constants';
-import { GenerateUrlBody, UpdateStatusQuery } from './interface/upload.interface';
+import { UpdateStatusQuery } from './interface/upload.interface';
+import { TransformImageDto } from './dto/upload.dto';
 
 
 @Controller('upload')
@@ -35,7 +36,7 @@ export class UploadController {
         @Query() query: UpdateStatusQuery,
     ) {
         const { id, status } = query;
-        
+
         const statusData = await this.uploadService.updateImageProcessingStatus(id, status);
 
         // Throwing the exception lets the Global Exception Filter handle the 400 response.
@@ -57,12 +58,12 @@ export class UploadController {
     async generatePresignedUrl(
         @Req() req: AuthRequest,
         // Removed @Res() res: FastifyReply
-        @Body() body: GenerateUrlBody,
+        @Body() body: TransformImageDto,
     ) {
         this.logger.log('Generate presigned URL request received');
 
-        const { filename, mimeType ,transformationType,transformationParamters} = body;
-        const userId = req.user.id; 
+        const { filename, mimeType, transformationType, transformationParamters } = body;
+        const userId = req.user.id;
 
         const presignData = await this.uploadService.generatePresignedUrl(
             userId,

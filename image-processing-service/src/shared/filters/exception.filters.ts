@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost } from '@nestjs/core';
@@ -15,7 +16,7 @@ export class CatchEverythingFilter implements ExceptionFilter {
   constructor(
     private readonly httpAdapterHost: HttpAdapterHost,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const { httpAdapter } = this.httpAdapterHost;
@@ -33,7 +34,23 @@ export class CatchEverythingFilter implements ExceptionFilter {
       success: false,
     };
     // Now, add the message based on the error type
-    if (exception instanceof HttpException) {
+    if (exception instanceof BadRequestException) {
+      // Handle validation errors specifically
+      const response = exception.getResponse();
+      this.logger.error('Validation Error:', response);
+
+      if (typeof response === 'object' && response !== null) {
+        // If it's a validation error object, return it as-is
+        httpAdapter.reply(ctx.getResponse(), {
+          ...response,
+          success: false,
+        }, httpStatus);
+        return;
+      } else {
+        // Fallback to message
+        responseBody.message = exception.message;
+      }
+    } else if (exception instanceof HttpException) {
       this.logger.error(exception.message)
       // If it's a planned HTTP error, it's safe to show the message.
       responseBody.message = exception.message;
