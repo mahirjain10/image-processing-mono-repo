@@ -1,0 +1,33 @@
+meta {
+  name: SSE Status
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{local-base-url}}/status
+  body: none
+  auth: bearer
+}
+
+headers {
+  Set-Cookie: {{}}
+}
+
+script:pre-request {
+  // Get saved auth token variable
+  const token = bru.getVar('auth_token');
+  if (token) {
+    // Set the Cookie header for the current request
+    req.setHeader('Cookie', `token=${token}`);
+    console.log('🍪 Cookie header set from auth_token');
+  } else {
+    console.log('⚠️ No auth_token found — cookie header not set');
+  }
+  
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

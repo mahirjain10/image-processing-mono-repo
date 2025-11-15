@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const envFile = process.env.NODE_ENV === 'local' ? '.env.local' : '.env.docker'
+const envFile = process.env.NODE_ENV === 'dev' ? '.env.dev' : '.env.docker'
 config({ path: envFile })
 
 export default defineConfig({

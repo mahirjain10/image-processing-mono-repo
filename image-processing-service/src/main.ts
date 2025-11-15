@@ -17,7 +17,6 @@ const bootstrap = async () => {
     new FastifyAdapter(),
   );
 
-  // app.get => asking dependency manually from the DI container
   const httpAdapter = app.get(HttpAdapterHost);
   const configService = app.get(ConfigService);
 
@@ -33,6 +32,8 @@ const bootstrap = async () => {
       validateCustomDecorators: true
     }),
   );
+
+  // RMQ Microservice - Listen for messages from Go worker
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
@@ -40,7 +41,7 @@ const bootstrap = async () => {
       queue: 'status_queue',
       exchangeType: 'direct',
       queueOptions: {
-        durable: true, // false = keep queue in memeory and true = save data to the disk
+        durable: true,
       },
       noAck: false,
       persistent: true,
@@ -48,6 +49,15 @@ const bootstrap = async () => {
       routingKey: 'status',
     },
   });
+
+  await app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.REDIS,
+    options: {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: Number(process.env.REDIS_PORT)
+    },
+  });
+
   await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 };

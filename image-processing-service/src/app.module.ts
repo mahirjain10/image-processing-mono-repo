@@ -13,6 +13,8 @@ import { WebhookModule } from '@webhook/webhook.module';
 import { SnsModule } from './sns/sns.module';
 import { RabbitmqModule } from '@rabbitmq/rabbitmq.module';
 import { StatusModule } from './status/status.module';
+import { PubsubModule } from './shared/pubsub/pubsub.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -23,8 +25,8 @@ import { StatusModule } from './status/status.module';
       envFilePath:
         process.env.NODE_ENV === 'docker'
           ? '.env.docker'
-          : process.env.NODE_ENV === 'local'
-            ? '.env.local'
+          : process.env.NODE_ENV === 'dev'
+            ? '.env.dev'
             : '.env.production',
     }),
     AuthModule,
@@ -34,6 +36,7 @@ import { StatusModule } from './status/status.module';
     CronsModule,
     WebhookModule,
     SnsModule,
+    PubsubModule,
     RabbitmqModule.register([
       {
         name: 'ROTATE_QUEUE',
@@ -67,6 +70,8 @@ import { StatusModule } from './status/status.module';
       // },
     ]),
     StatusModule,
+    PubsubModule.register(),
+    EventEmitterModule.forRoot()
   ],
   providers: [AppService],
   controllers: [AppController],

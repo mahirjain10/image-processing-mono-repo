@@ -18,5 +18,10 @@ export default () => ({
   rabbitmq:{
     url:process.env.RABBITMQ_URL,
     queue:process.env.RABBITMQ_QUEUE
+  },
+  redis:{
+    url:process.env.REDIS_URL,
+    port:process.env.REDIS_PORT,
+    host:process.env.REDIS_HOST,
   }
 });

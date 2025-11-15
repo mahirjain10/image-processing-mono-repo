@@ -5,16 +5,30 @@ meta {
 }
 
 patch {
-  url: http://localhost:3000/upload/status?id=90ea61be-a154-4126-b9ea-3b41d32799c5&status=UPLOADING
+  url: http://localhost:3000/upload/status?id={{job-id}}&status=UPLOADING
   body: none
   auth: none
 }
 
-query {
-  id: 90ea61be-a154-4126-b9ea-3b41d32799c5
+params:query {
+  id: {{job-id}}
   status: UPLOADING
 }
 
 headers {
   Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjRlM2MxNjNmLTI5YWQtNDE5YS05OTQzLTUzOTE4NmJlYzliNiIsImVtYWlsIjoibWFzc2hzaXNzc3Jzc3Nzc3NzQGdtYWlsLmNvbSIsImlhdCI6MTc2MjAwNjE0OCwiZXhwIjoxNzYyMDA3OTQ4fQ.IN59XZVVKsbUjapOmqbCcgiQCkovzv4eWczYJrkvjb0; Path=/; Expires=Sat, 01 Nov 2025 15:09:08 GMT; HttpOnly; Secure; SameSite=Strict
+}
+
+script:pre-request {
+  // Get saved auth token variable
+  const token = bru.getVar('auth_token');
+  
+  if (token) {
+    // Set the Cookie header for the current request
+    req.setHeader('Cookie', `token=${token}`);
+    console.log('🍪 Cookie header set from auth_token');
+  } else {
+    console.log('⚠️ No auth_token found — cookie header not set');
+  }
+  
 }

@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
-import { StatusService } from './status.service';
+import { StatusEventController } from './status-event.controller';
 import { RabbitmqModule } from '../shared/rabbitmq/rabbitmq.module';
 import { PrismaModule } from '@shared/prisma/prisma.module';
+import { PubsubModule } from '@shared/pubsub/pubsub.module';
+import { StatusController } from './status.controller';
+import { AuthGuard } from '@shared/guards/auth.guard';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -10,12 +14,14 @@ import { PrismaModule } from '@shared/prisma/prisma.module';
         name: 'STATUS_QUEUE',
         queue: 'status_queue',
         durable: true,
+    
       },
     ]),
-    PrismaModule
+    PrismaModule,
+    PubsubModule,
   ],
-  providers: [StatusService],
-  controllers: [StatusService],
-  exports: [StatusService],
+  providers: [JwtService,],
+  controllers: [StatusController,StatusEventController],
+  exports: [],
 })
 export class StatusModule {}

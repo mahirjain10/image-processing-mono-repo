@@ -16,11 +16,10 @@ headers {
 
 body:json {
   {
-    "filename":"mylovemeowmeow.png",
+    "filename":"mylovsssssessmeowmeow.png",
     "mimeType":"image/jpeg",
     "transformationType":"RESIZE",
     "transformationParamters":{
-      "height":100,
        "width":100
     }
   }
@@ -33,7 +32,6 @@ vars:pre-request {
 script:pre-request {
   // Get saved auth token variable
   const token = bru.getVar('auth_token');
-  
   if (token) {
     // Set the Cookie header for the current request
     req.setHeader('Cookie', `token=${token}`);
@@ -46,9 +44,10 @@ script:pre-request {
 
 script:post-response {
   const presigned_url = res.body.data.preSignedUrl;
-  
-  if (res.status === 201 && presigned_url) {
+  const job_id =  res.body.data.id
+  if (res.status === 201 && presigned_url && job_id) {
     bru.setEnvVar('presigned-url', presigned_url);
+    bru.setEnvVar('job-id',job_id )
     console.log('✅ Presigned URL saved to env var');
   } else {
     console.log('❌ Failed to set Presigned URL');

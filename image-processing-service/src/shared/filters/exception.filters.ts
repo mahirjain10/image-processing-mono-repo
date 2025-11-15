@@ -33,26 +33,23 @@ export class CatchEverythingFilter implements ExceptionFilter {
       message: '',
       success: false,
     };
-    // Now, add the message based on the error type
+
     if (exception instanceof BadRequestException) {
-      // Handle validation errors specifically
       const response = exception.getResponse();
       this.logger.error('Validation Error:', response);
 
       if (typeof response === 'object' && response !== null) {
-        // If it's a validation error object, return it as-is
         httpAdapter.reply(ctx.getResponse(), {
           ...response,
           success: false,
         }, httpStatus);
         return;
       } else {
-        // Fallback to message
         responseBody.message = exception.message;
       }
     } else if (exception instanceof HttpException) {
       this.logger.error(exception.message)
-      // If it's a planned HTTP error, it's safe to show the message.
+
       responseBody.message = exception.message;
     } else if (
       this.configService.get<string>('env') !== 'production' &&
@@ -61,10 +58,8 @@ export class CatchEverythingFilter implements ExceptionFilter {
       this.logger.error(exception.message)
       this.logger.error(exception.stack)
 
-      // If it's an unexpected error AND we're NOT in production, show it.
       responseBody.message = exception.message;
     } else {
-      // If it's an unexpected error AND we ARE in production, keep it generic.
       responseBody.message = 'Internal Server Error';
     }
 

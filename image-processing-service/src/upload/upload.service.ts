@@ -17,6 +17,8 @@ import {
 } from './interface/upload.interface';
 import { stringify } from 'querystring';
 import { TransformationType } from 'class-transformer';
+import { PubsubService } from '@shared/pubsub/pubsub.service';
+import { NOTIFICATION_CHANNEL, STATUS_TYPE, StatusMessage } from '@shared/interface/status-pub-sub.interface';
 
 @Injectable()
 export class UploadService {
@@ -31,6 +33,7 @@ export class UploadService {
     @Inject('S3_CLIENT') private readonly s3Client: S3Client,
     private readonly configService: ConfigService,
     private readonly prismaService: PrismaService,
+    @Inject('PUB_SUB')private readonly pubSubService:PubsubService
   ) { }
 
   public async updateImageProcessingStatus(
@@ -58,6 +61,13 @@ export class UploadService {
       data: { status: statusToUpdate },
     });
 
+    const statusMessage:StatusMessage={
+      userId:updatedData.userId,
+      jobId:updatedData.id,
+      status:statusToUpdate,
+      type:STATUS_TYPE
+    }
+    this.pubSubService.emit(NOTIFICATION_CHANNEL,statusMessage)
     return {
       data: updatedData,
       message: 'Updated status successfully',
