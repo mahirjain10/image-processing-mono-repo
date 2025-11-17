@@ -37,7 +37,7 @@ func (s3Service *S3Service) GetDependencyData() (string, string, string) {
 // Create a child context from parent context so that we can cancel inflights download when app shutsdown
 
 func (service *S3Service) DownloadFromS3Object(ctx context.Context, key string) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
 	resp, err := service.client.GetObject(ctx, &s3.GetObjectInput{

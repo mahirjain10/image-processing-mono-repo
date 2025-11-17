@@ -32,24 +32,22 @@ func InitializeEnvs() (*Config, error) {
 	}
 	log.Println("Working dir:", wd)
 
-	// Dynamically load env files based on APP_ENV
-	switch os.Getenv("APP_ENV") { // expected "local" or "docker"
+	switch os.Getenv("APP_ENV") { 
 	case "docker":
 		if err := godotenv.Overload(".env.docker"); err == nil {
 			log.Println("Loaded .env.docker")
 		} else {
 			log.Println(".env.docker not found, using existing environment")
 		}
-	case "local", "":
-		if err := godotenv.Overload(".env.local"); err == nil {
-			log.Println("Loaded .env.local")
+	case "dev", "":
+		if err := godotenv.Overload(".env.dev"); err == nil {
+			log.Println("Loaded .env.dev")
 		} else if err := godotenv.Overload(".env"); err == nil {
 			log.Println("Loaded .env")
 		} else {
-			log.Println("No .env.local or .env found, using system environment variables")
+			log.Println("No .env.dev or .env found, using system environment variables")
 		}
 	default:
-		// Attempt to load .env.<APP_ENV>, then fallback to .env
 		fname := ".env." + os.Getenv("APP_ENV")
 		if err := godotenv.Overload(fname); err == nil {
 			log.Printf("Loaded %s", fname)

@@ -54,12 +54,26 @@ func (rabbitMqService *RabbitMqService) declareExchange() error {
 	return nil
 }
 
+func (rabbitMqService *RabbitMqService) PublishToChannelHelper(ctx context.Context, id string, userId string, status string, publicUrl string, errorMsg string) error {
+	// DONT NEED CONTEXT HERE
+	statusData := utils.InitStatusData(id, userId, status, publicUrl, errorMsg)
+	statusMessage := utils.InitStatusMessage(statusData)
+	log.Printf("[%s] printing status message: %+v", status,statusMessage)
+	if err := rabbitMqService.PublishToChannel(ctx, statusMessage); err != nil {
+		if utils.IsFatalError(err) {
+			return fmt.Errorf("fatal: cannot publish initial processing status: %w", err)
+		}
+		log.Printf("Warning: failed to publish initial status: %v", err)
+	}
+	return nil
+}
+
 func (rabbitMqService *RabbitMqService) PublishToChannel(ctx context.Context, message interface{}) error {
 	if rabbitMqService.statusQueueChannel == nil {
 		return fmt.Errorf("statusQueueChannel is not initialized")
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	// EXTENDING BG CONTEXT HERE
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	serializedMessage, err := utils.SerializeJSON(message)
@@ -94,14 +108,8 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 	}
 
 	log.Printf("Processing S3 event - Pattern: %s, Object: %+v", rabbitMqMessage.Pattern, rabbitMqMessage.Data)
-	statusData := utils.InitStatusData(rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, "", errorMsg)
-	statusMessage := utils.InitStatusMessage(statusData)
-	log.Printf("[processing] printing status message: %+v", statusMessage)
-	if err := rabbitMqService.PublishToChannel(ctx, statusMessage); err != nil {
-		if utils.IsFatalError(err) {
-			return fmt.Errorf("fatal: cannot publish initial processing status: %w", err)
-		}
-		log.Printf("Warning: failed to publish initial status: %v", err)
+	if err := rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg); err != nil {
+		return err
 	}
 
 	if rabbitMqMessage.Data.CreatedAt != "" {
@@ -125,13 +133,8 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 		log.Printf("Download failed after 3 attempts: %v", downloadErr)
 		errorMsg = queueErrors.ErrDownload
 		status := types.FAILED
-		statusData := utils.InitStatusData(rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, "", errorMsg)
-		statusMessage := utils.InitStatusMessage(statusData)
-		if publishErr := rabbitMqService.PublishToChannel(ctx, statusMessage); publishErr != nil {
-			if utils.IsFatalError(publishErr) {
-				return fmt.Errorf("fatal: cannot publish failure status after download failure: %w", publishErr)
-			}
-			log.Printf("Failed to publish failure status (non-fatal): %v", publishErr)
+		if err := rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg); err != nil {
+			return err
 		}
 		if _, deleteErr := rabbitMqService.s3Service.DeleteS3Object(ctx, rabbitMqMessage.Data.S3RawKey); deleteErr != nil {
 			log.Printf("couldnt delete the s3 object with key: %s", rabbitMqMessage.Data.S3RawKey)
@@ -144,15 +147,9 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 		log.Printf("Transform failed: %v", err)
 		errorMsg = queueErrors.ErrTransform
 		status := types.FAILED
-		statusData := utils.InitStatusData(rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, "", errorMsg)
-		statusMessage := utils.InitStatusMessage(statusData)
-		if publishErr := rabbitMqService.PublishToChannel(ctx, statusMessage); publishErr != nil {
-			if utils.IsFatalError(publishErr) {
-				return fmt.Errorf("fatal: cannot publish transform failure status: %w", publishErr)
-			}
-			log.Printf("Failed to publish transform failure status (non-fatal): %v", publishErr)
+		if err := rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg); err != nil {
+			return err
 		}
-
 		return models.ProcessingError{Err: fmt.Errorf("transform failed for key %s: %w", rabbitMqMessage.Data.S3RawKey, err), Requeue: false}
 	}
 
@@ -160,9 +157,8 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 	splitString := strings.Split(rabbitMqMessage.Data.S3RawKey, "/")
 	if len(splitString) < 2 {
 		errorMsg = queueErrors.ErrUpload
-		statusData := utils.InitStatusData(rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, types.FAILED, "", errorMsg)
-		statusMessage := utils.InitStatusMessage(statusData)
-		_ = rabbitMqService.PublishToChannel(ctx, statusMessage)
+		status = types.FAILED
+		_ = rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg)
 		return models.ProcessingError{Err: fmt.Errorf("unexpected S3RawKey format: %s", rabbitMqMessage.Data.S3RawKey), Requeue: false}
 	}
 
@@ -197,29 +193,19 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 	if uploadErr != nil {
 		fmt.Printf("error in upload: %v", uploadErr)
 		errorMsg = queueErrors.ErrUpload
-		statusData := utils.InitStatusData(rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, types.FAILED, "", errorMsg)
-		statusMessage := utils.InitStatusMessage(statusData)
-		if publishErr := rabbitMqService.PublishToChannel(ctx, statusMessage); publishErr != nil {
-			if utils.IsFatalError(publishErr) {
-				return fmt.Errorf("fatal: cannot publish upload failure status: %w", publishErr)
-			}
-			log.Printf("Failed to publish upload failure status (non-fatal): %v", publishErr)
+		status = types.FAILED
+		if err := rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg); err != nil {
+			return err
 		}
 
 		return models.ProcessingError{Err: fmt.Errorf("upload failed for key %s: %w", formattedKey, uploadErr), Requeue: false}
 	}
 
 	// Mark as processed
-	statusData = utils.InitStatusData(rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, types.PROCCESSED, publicUrl, "")
-	statusMessage = utils.InitStatusMessage(statusData)
-	log.Printf("[processed] printing status message : %+v", statusMessage)
-	if publishErr := rabbitMqService.PublishToChannel(ctx, statusMessage); publishErr != nil {
-		if utils.IsFatalError(publishErr) {
-			return fmt.Errorf("fatal: cannot publish final status: %w", publishErr)
-		}
-		log.Printf("Failed to publish final status (non-fatal): %v", publishErr)
+	status = types.PROCCESSED
+	if err := rabbitMqService.PublishToChannelHelper(ctx,rabbitMqMessage.Data.Id,rabbitMqMessage.Data.UserId,status,publicUrl,errorMsg);err != nil{
+		return err
 	}
-
 	return nil
 }
 
@@ -288,7 +274,7 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 					if err != nil {
 						log.Printf("failed to connect to RabbitMQ: %v", err)
 					}
-					rabbitMqService.rabbitMqConn = conn
+					rabbitMqService.rabbitMqConn = conn	
 					newCh, err := utils.NewChannel(conn)
 					if err != nil {
 						log.Printf("[%s] Failed to create channel: %v", queueName, err)
@@ -298,7 +284,7 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 					consumerCh = newCh
 					log.Printf("[%s] Channel created", queueName)
 				}
-
+				
 				msgs, err := utils.NewQueueConsumer(consumerCh, queueName)
 				if err != nil {
 					log.Printf("[%s] Failed to start consumer: %v", queueName, err)
