@@ -1,0 +1,32 @@
+
+FROM golang:1.23 as builder
+
+# Allow Go to auto-install the required toolchain version from go.mod (e.g., 1.24.3)
+ENV GOTOOLCHAIN=auto
+
+WORKDIR /app
+
+# Copy code
+COPY . .
+
+# Download dependencies (using the appropriate toolchain)
+RUN go mod download
+
+# Build the binary
+# -o app = output filename
+# . = current directory (build all .go files)
+RUN go build -o app .
+
+FROM alpine:3.18
+
+WORKDIR /app
+
+# Copy ONLY the binary from builder stage
+COPY --from=builder /app/app .
+
+# Install CA certs for HTTPS (AWS SDK) and prepare working dirs
+RUN apk add --no-cache ca-certificates && update-ca-certificates \
+    && mkdir -p /app/images
+
+# Run it
+CMD ["./app"]
