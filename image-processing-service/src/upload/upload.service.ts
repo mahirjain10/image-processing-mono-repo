@@ -18,7 +18,11 @@ import {
 import { stringify } from 'querystring';
 import { TransformationType } from 'class-transformer';
 import { PubsubService } from '@shared/pubsub/pubsub.service';
-import { NOTIFICATION_CHANNEL, STATUS_TYPE, StatusMessage } from '@shared/interface/status-pub-sub.interface';
+import {
+  NOTIFICATION_CHANNEL,
+  STATUS_TYPE,
+  StatusMessage,
+} from '@shared/interface/status-pub-sub.interface';
 
 @Injectable()
 export class UploadService {
@@ -33,12 +37,13 @@ export class UploadService {
     @Inject('S3_CLIENT') private readonly s3Client: S3Client,
     private readonly configService: ConfigService,
     private readonly prismaService: PrismaService,
-    @Inject('PUB_SUB')private readonly pubSubService:PubsubService
-  ) { }
+    @Inject('PUB_SUB') private readonly pubSubService: PubsubService,
+  ) {}
 
   public async updateImageProcessingStatus(
     id: string,
     statusToUpdate: STATUS,
+    errorMsg: string | null,
   ): Promise<ImageProcessingResponse> {
     const fetchData = await this.imageProcessingDb.findFirst({ where: { id } });
 
@@ -61,13 +66,14 @@ export class UploadService {
       data: { status: statusToUpdate },
     });
 
-    const statusMessage:StatusMessage={
-      userId:updatedData.userId,
-      jobId:updatedData.id,
-      status:statusToUpdate,
-      type:STATUS_TYPE
-    }
-    this.pubSubService.emit(NOTIFICATION_CHANNEL,statusMessage)
+    const statusMessage: StatusMessage = {
+      userId: updatedData.userId,
+      jobId: updatedData.id,
+      status: statusToUpdate,
+      type: STATUS_TYPE,
+      errorMsg: errorMsg,
+    };
+    this.pubSubService.emit(NOTIFICATION_CHANNEL, statusMessage);
     return {
       data: updatedData,
       message: 'Updated status successfully',
@@ -80,10 +86,10 @@ export class UploadService {
     mimeType: string,
     transformationType: TRANSFORMATION_TYPE,
     transformationParamters: {
-      height?: number,
-      width?: number,
-      degree?: number,
-      format?: string,
+      height?: number;
+      width?: number;
+      degree?: number;
+      format?: string;
     },
   ) {
     // 1. Create image record before upload

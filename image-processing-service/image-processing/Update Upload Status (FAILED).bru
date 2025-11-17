@@ -1,0 +1,34 @@
+meta {
+  name: Update Upload Status (FAILED)
+  type: http
+  seq: 11
+}
+
+patch {
+  url: http://localhost:3000/upload/status?id={{job-id}}&status=FAILED
+  body: none
+  auth: none
+}
+
+params:query {
+  id: {{job-id}}
+  status: FAILED
+}
+
+headers {
+  Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjRlM2MxNjNmLTI5YWQtNDE5YS05OTQzLTUzOTE4NmJlYzliNiIsImVtYWlsIjoibWFzc2hzaXNzc3Jzc3Nzc3NzQGdtYWlsLmNvbSIsImlhdCI6MTc2MjAwNjE0OCwiZXhwIjoxNzYyMDA3OTQ4fQ.IN59XZVVKsbUjapOmqbCcgiQCkovzv4eWczYJrkvjb0; Path=/; Expires=Sat, 01 Nov 2025 15:09:08 GMT; HttpOnly; Secure; SameSite=Strict
+}
+
+script:pre-request {
+  // Get saved auth token variable
+  const token = bru.getVar('auth_token');
+  
+  if (token) {
+    // Set the Cookie header for the current request
+    req.setHeader('Cookie', `token=${token}`);
+    console.log('🍪 Cookie header set from auth_token');
+  } else {
+    console.log('⚠️ No auth_token found — cookie header not set');
+  }
+  
+}

@@ -1,13 +1,14 @@
-import { ImageProcessing } from "@shared/prisma/generated/client";
-import { STATUS, TRANSFORMATION_TYPE } from "../constants/upload.constants";
+import { ImageProcessing } from '@shared/prisma/generated/client';
+import { STATUS, TRANSFORMATION_TYPE } from '../constants/upload.constants';
 
 export interface UpdateStatusQuery {
   id: string;
   status: STATUS;
+  errorMsg?: string;
 }
 
-export type TransformationParamters = Map<string, string | number>
+export type TransformationParamters = Map<string, string | number>;
 export interface ImageProcessingResponse {
-  data: ImageProcessing | null
-  message: string
+  data: ImageProcessing | null;
+  message: string;
 }

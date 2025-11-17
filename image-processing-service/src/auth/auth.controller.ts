@@ -11,12 +11,14 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
+import * as bcrypt from 'bcrypt'
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { JWT_COOKIE_EXPIRES_IN, LOGIN_LIMIT_FIELD } from '@auth/constants/users.constant';
 import { AuthService } from '@src/auth/auth.service';
 import CreateUserDto from '@src/auth/dto/create-user.dto';
 import LoginUserDto from '@src/auth/dto/user.dto';
 import { setCookie } from '@shared/utils/setCookie';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -37,6 +39,8 @@ export class AuthController {
         'User already registered with the given email',
       );
     }
+    
+    createUserDto.password = await bcrypt.hash(password,10)
     const savedUser = await this.authService.createUser(createUserDto);
     const payload = {
       id: savedUser.id,
@@ -66,7 +70,8 @@ export class AuthController {
     if (user.uploadLimit >= 5){
       throw new BadRequestException('Rate Limit Exceeded')
     }
-    if (user.password !== password) {
+    const passwordMatch = await bcrypt.hash(password,user.password)
+    if (!passwordMatch) {
       throw new BadRequestException('Password mismatch');
     }
     const statusCode = HttpStatus.OK

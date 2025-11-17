@@ -37,7 +37,7 @@ const bootstrap = async () => {
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
-      urls: ['amqp://localhost:5672'],
+      urls: [configService.get<string>('rabbitmq.url') || process.env.RABBITMQ_URL || 'amqp://localhost:5672'],
       queue: 'status_queue',
       exchangeType: 'direct',
       queueOptions: {
