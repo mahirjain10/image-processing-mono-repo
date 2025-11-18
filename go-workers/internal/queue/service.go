@@ -54,6 +54,35 @@ func (rabbitMqService *RabbitMqService) declareExchange() error {
 	return nil
 }
 
+func (rabbitMqService *RabbitMqService) fireBackgroundCleanup(parentCtx context.Context, downloadPath, uploadPath, s3Key, cleanupMode string) {
+	go func() {
+		ctx, cancel := context.WithTimeout(parentCtx, 90*time.Second)
+		defer cancel()
+
+		switch cleanupMode {
+		case "delete_s3":
+			utils.DeleteS3Object(ctx, rabbitMqService.s3Service, s3Key)
+		case "remove_local_and_delete_s3":
+			if err := utils.RemoveLocalRaw(downloadPath, s3Key); err != nil {
+				log.Printf("[bg-cleanup] error while removing local raw file %v", err)
+			}
+			utils.DeleteS3Object(ctx, rabbitMqService.s3Service, s3Key)
+		case "remove_local_all_and_delete_s3":
+			if err := utils.RemoveLocalRaw(downloadPath, s3Key); err != nil {
+				log.Printf("[bg-cleanup] error while removing local raw file %v", err)
+			}
+			if err := utils.RemoveLocalProcessed(uploadPath, s3Key); err != nil {
+				log.Printf("[bg-cleanup] error while removing local processed file %v", err)
+			}
+			utils.DeleteS3Object(ctx, rabbitMqService.s3Service, s3Key)
+		case "cleanup_all":
+			utils.CleanupAll(ctx, rabbitMqService.s3Service, downloadPath, uploadPath, s3Key)
+		default:
+			utils.DeleteS3Object(ctx, rabbitMqService.s3Service, s3Key)
+		}
+	}()
+}
+
 func (rabbitMqService *RabbitMqService) PublishToChannelHelper(ctx context.Context, id string, userId string, status string, publicUrl string, errorMsg string) error {
 	// DONT NEED CONTEXT HERE
 	statusData := utils.InitStatusData(id, userId, status, publicUrl, errorMsg)
@@ -99,7 +128,7 @@ func (rabbitMqService *RabbitMqService) PublishToChannel(ctx context.Context, me
 
 func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d amqp.Delivery) error {
 	status := types.PROCESSING
-
+	_, downloadPath, uploadPath := rabbitMqService.s3Service.GetDependencyData()
 	log.Printf("Received message: %s", d.Body)
 	var publicUrl, errorMsg = "", ""
 	var rabbitMqMessage *models.RabbitMqMessage
@@ -136,9 +165,9 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 		if err := rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg); err != nil {
 			return err
 		}
-		if _, deleteErr := rabbitMqService.s3Service.DeleteS3Object(ctx, rabbitMqMessage.Data.S3RawKey); deleteErr != nil {
-			log.Printf("couldnt delete the s3 object with key: %s", rabbitMqMessage.Data.S3RawKey)
-		}
+
+		// background: just delete the S3 object 
+		rabbitMqService.fireBackgroundCleanup(ctx, downloadPath, uploadPath, rabbitMqMessage.Data.S3RawKey, "delete_s3")
 		return models.ProcessingError{Err: fmt.Errorf("download failed for key %s: %w", rabbitMqMessage.Data.S3RawKey, downloadErr), Requeue: false}
 	}
 
@@ -150,6 +179,9 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 		if err := rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg); err != nil {
 			return err
 		}
+
+		// background: remove local raw and delete s3
+		rabbitMqService.fireBackgroundCleanup(ctx, downloadPath, uploadPath, rabbitMqMessage.Data.S3RawKey, "remove_local_and_delete_s3")
 		return models.ProcessingError{Err: fmt.Errorf("transform failed for key %s: %w", rabbitMqMessage.Data.S3RawKey, err), Requeue: false}
 	}
 
@@ -164,15 +196,17 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 
 	finalKey := splitString[1]
 	if rabbitMqMessage.Data.TransformationType == "CONVERT" {
-		dotSplit := strings.Split(splitString[1], ".")
-		if len(dotSplit) < 2 {
-			return fmt.Errorf("unexpected S3RawKey format: %s", rabbitMqMessage.Data.S3RawKey)
-		}
 		var convert types.Convert
 		if err := utils.ParseJSON([]byte(rabbitMqMessage.Data.TransformationParameters), &convert); err != nil {
 			return fmt.Errorf("failed to parse message: %w", err)
 		}
-		finalKey = fmt.Sprintf("%s.%s", dotSplit[0], convert.Format)
+	
+		dotIndex := strings.LastIndex(finalKey, ".")
+		if dotIndex == -1 {
+			return fmt.Errorf("unexpected S3RawKey format: %s", rabbitMqMessage.Data.S3RawKey)
+		}
+		base := finalKey[:dotIndex]
+		finalKey = fmt.Sprintf("%s.%s", base, convert.Format)
 	}
 
 	formattedKey := fmt.Sprintf("processed/%s", finalKey)
@@ -198,6 +232,7 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 			return err
 		}
 
+		rabbitMqService.fireBackgroundCleanup(ctx, downloadPath, uploadPath, rabbitMqMessage.Data.S3RawKey, "remove_local_all_and_delete_s3")
 		return models.ProcessingError{Err: fmt.Errorf("upload failed for key %s: %w", formattedKey, uploadErr), Requeue: false}
 	}
 
@@ -206,6 +241,8 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 	if err := rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg); err != nil {
 		return err
 	}
+
+	rabbitMqService.fireBackgroundCleanup(ctx, downloadPath, uploadPath, rabbitMqMessage.Data.S3RawKey, "cleanup_all")
 	return nil
 }
 
@@ -219,22 +256,13 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 			log.Fatal("failed to open RabbitMQ channel :", err)
 		}
 
-		// for _, fetchedQueues := range rabbitMqService.config.RabbitMqQueues {
-		// 	_, err = utils.NewQueue(ch, fetchedQueues)
-		// 	if err != nil {
-		// 		ch.Close()
-		// 		conn.Close()
-		// 		log.Fatalf("failed to declare %s : %v", fetchedQueues, err)
-		// 	}
-		// }
-
 		_, err = utils.NewQueue(ch, queueName)
 		if err != nil {
 			ch.Close()
 			conn.Close()
 			log.Fatalf("failed to declare %s : %v", queueName, err)
 		}
-		log.Printf("[%s] declared",queueName)
+		log.Printf("[%s] declared", queueName)
 		if q == "status_queue" {
 			rabbitMqService.statusQueueChannel = ch
 			if err = rabbitMqService.declareExchange(); err != nil {
@@ -279,7 +307,6 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 					default:
 					}
 
-					//
 					if consumerCh == nil || consumerCh.IsClosed() {
 						if consumerCh != nil {
 							consumerCh.Close()

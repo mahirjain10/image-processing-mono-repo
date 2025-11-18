@@ -63,7 +63,6 @@ func NewApp(ctx context.Context) (*App, error) {
 	return &App{
 		config:       envConfig,
 		rabbitMqConn: conn,
-		// s3Client:        s3Client,
 		s3Service:       s3Service,
 		rabbitMqService: rabbitMqService,
 	}, nil
@@ -78,7 +77,7 @@ func main() {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 	log.Printf("loging app: %v", app)
-	// defer app.Close()
+
 
 	log.Println("Application initialized successfully")
 

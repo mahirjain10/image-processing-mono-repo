@@ -33,9 +33,6 @@ func (s3Service *S3Service) GetDependencyData() (string, string, string) {
 	return s3Service.bucketName, s3Service.downloadPath, s3Service.uploadPath
 }
 
-// Creation of individual context leads to cancellation of individual downloads
-// Create a child context from parent context so that we can cancel inflights download when app shutsdown
-
 func (service *S3Service) DownloadFromS3Object(ctx context.Context, key string) error {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
