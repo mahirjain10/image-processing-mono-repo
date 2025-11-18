@@ -58,7 +58,7 @@ func (rabbitMqService *RabbitMqService) PublishToChannelHelper(ctx context.Conte
 	// DONT NEED CONTEXT HERE
 	statusData := utils.InitStatusData(id, userId, status, publicUrl, errorMsg)
 	statusMessage := utils.InitStatusMessage(statusData)
-	log.Printf("[%s] printing status message: %+v", status,statusMessage)
+	log.Printf("[%s] printing status message: %+v", status, statusMessage)
 	if err := rabbitMqService.PublishToChannel(ctx, statusMessage); err != nil {
 		if utils.IsFatalError(err) {
 			return fmt.Errorf("fatal: cannot publish initial processing status: %w", err)
@@ -203,7 +203,7 @@ func (rabbitMqService *RabbitMqService) ProcessMessage(ctx context.Context, d am
 
 	// Mark as processed
 	status = types.PROCCESSED
-	if err := rabbitMqService.PublishToChannelHelper(ctx,rabbitMqMessage.Data.Id,rabbitMqMessage.Data.UserId,status,publicUrl,errorMsg);err != nil{
+	if err := rabbitMqService.PublishToChannelHelper(ctx, rabbitMqMessage.Data.Id, rabbitMqMessage.Data.UserId, status, publicUrl, errorMsg); err != nil {
 		return err
 	}
 	return nil
@@ -219,15 +219,22 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 			log.Fatal("failed to open RabbitMQ channel :", err)
 		}
 
-		for _, fetchedQueues := range rabbitMqService.config.RabbitMqQueues {
-			_, err = utils.NewQueue(ch, fetchedQueues)
-			if err != nil {
-				ch.Close()
-				conn.Close()
-				log.Fatalf("failed to declare %s : %v", fetchedQueues, err)
-			}
-		}
+		// for _, fetchedQueues := range rabbitMqService.config.RabbitMqQueues {
+		// 	_, err = utils.NewQueue(ch, fetchedQueues)
+		// 	if err != nil {
+		// 		ch.Close()
+		// 		conn.Close()
+		// 		log.Fatalf("failed to declare %s : %v", fetchedQueues, err)
+		// 	}
+		// }
 
+		_, err = utils.NewQueue(ch, queueName)
+		if err != nil {
+			ch.Close()
+			conn.Close()
+			log.Fatalf("failed to declare %s : %v", queueName, err)
+		}
+		log.Printf("[%s] declared",queueName)
 		if q == "status_queue" {
 			rabbitMqService.statusQueueChannel = ch
 			if err = rabbitMqService.declareExchange(); err != nil {
@@ -249,74 +256,90 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 
 		ch.Close()
 
-		go func(queueName string) {
-			var consumerCh *amqp.Channel
-			defer func() {
-				if consumerCh != nil {
-					consumerCh.Close()
-				}
-			}()
-
-			for {
-				select {
-				case <-ctx.Done():
-					log.Printf("[%s] Shutting down...", queueName)
-					return
-				default:
-				}
-
-				if consumerCh == nil || consumerCh.IsClosed() {
+		count, ok := config.Worker[queueName]
+		if !ok {
+			log.Printf("could not get worker count for [%s]", queueName)
+			count = 1
+		}
+		for i := range count {
+			log.Printf("[%s] started :  worker no %d", queueName, i+1)
+			go func(queueName string) {
+				var consumerCh *amqp.Channel
+				defer func() {
 					if consumerCh != nil {
 						consumerCh.Close()
 					}
+				}()
 
-					conn, err := utils.NewRabbitMQClient(rabbitMqService.config.RabbitMqURL)
-					if err != nil {
-						log.Printf("failed to connect to RabbitMQ: %v", err)
-					}
-					rabbitMqService.rabbitMqConn = conn	
-					newCh, err := utils.NewChannel(conn)
-					if err != nil {
-						log.Printf("[%s] Failed to create channel: %v", queueName, err)
-						time.Sleep(5 * time.Second)
-						continue
-					}
-					consumerCh = newCh
-					log.Printf("[%s] Channel created", queueName)
-				}
-				
-				msgs, err := utils.NewQueueConsumer(consumerCh, queueName)
-				if err != nil {
-					log.Printf("[%s] Failed to start consumer: %v", queueName, err)
-					consumerCh.Close()
-					consumerCh = nil
-					time.Sleep(5 * time.Second)
-					continue
-				}
-
-				log.Printf("[%s] Worker started, waiting for messages...", queueName)
-
-				channelClosed := false
-				for !channelClosed {
+				for {
 					select {
 					case <-ctx.Done():
 						log.Printf("[%s] Shutting down...", queueName)
 						return
-					case d, ok := <-msgs:
-						if !ok {
-							log.Printf("[%s] Channel closed, will recreate", queueName)
-							consumerCh = nil
-							channelClosed = true
-							time.Sleep(2 * time.Second)
-							break
+					default:
+					}
+
+					//
+					if consumerCh == nil || consumerCh.IsClosed() {
+						if consumerCh != nil {
+							consumerCh.Close()
 						}
 
-						if err := rabbitMqService.ProcessMessage(ctx, d); err != nil {
-							log.Printf("[%s] Error processing message: %v", queueName, err)
+						conn, err := utils.NewRabbitMQClient(rabbitMqService.config.RabbitMqURL)
+						if err != nil {
+							log.Printf("failed to connect to RabbitMQ: %v", err)
+						}
+						rabbitMqService.rabbitMqConn = conn
+						newCh, err := utils.NewChannel(conn)
+						if err != nil {
+							log.Printf("[%s] Failed to create channel: %v", queueName, err)
+							time.Sleep(5 * time.Second)
+							continue
+						}
+						consumerCh = newCh
+						log.Printf("[%s] Channel created", queueName)
+					}
 
-							var procErr models.ProcessingError
-							if errors.As(err, &procErr) {
-								if procErr.Requeue {
+					msgs, err := utils.NewQueueConsumer(consumerCh, queueName)
+					if err != nil {
+						log.Printf("[%s] Failed to start consumer: %v", queueName, err)
+						consumerCh.Close()
+						consumerCh = nil
+						time.Sleep(5 * time.Second)
+						continue
+					}
+
+					log.Printf("[%s] Worker started, waiting for messages...", queueName)
+
+					channelClosed := false
+					for !channelClosed {
+						select {
+						case <-ctx.Done():
+							log.Printf("[%s] Shutting down...", queueName)
+							return
+						case d, ok := <-msgs:
+							if !ok {
+								log.Printf("[%s] Channel closed, will recreate", queueName)
+								consumerCh = nil
+								channelClosed = true
+								time.Sleep(2 * time.Second)
+								break
+							}
+
+							if err := rabbitMqService.ProcessMessage(ctx, d); err != nil {
+								log.Printf("[%s] Error processing message: %v", queueName, err)
+
+								var procErr models.ProcessingError
+								if errors.As(err, &procErr) {
+									if procErr.Requeue {
+										d.Nack(false, true)
+									} else {
+										d.Nack(false, false)
+									}
+									continue
+								}
+
+								if utils.IsTransientError(err) {
 									d.Nack(false, true)
 								} else {
 									d.Nack(false, false)
@@ -324,19 +347,13 @@ func (rabbitMqService *RabbitMqService) Start(conn *amqp.Connection, ctx context
 								continue
 							}
 
-							if utils.IsTransientError(err) {
-								d.Nack(false, true)
-							} else {
-								d.Nack(false, false)
-							}
-							continue
+							d.Ack(false)
 						}
-
-						d.Ack(false)
 					}
 				}
-			}
-		}(q)
+			}(q)
+		}
+
 	}
 
 	<-ctx.Done()
