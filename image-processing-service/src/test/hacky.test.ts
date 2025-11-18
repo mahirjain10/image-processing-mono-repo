@@ -23,8 +23,8 @@ import { URL } from 'url';
 // CONFIGURATION
 // ##################################################################
 const CONFIG = {
-  API_BASE_URL: 'http://localhost:3000',
-  SSE_UPDATES_URL: 'http://localhost:3000/status',
+  API_BASE_URL: 'http://localhost:5000',
+  SSE_UPDATES_URL: 'http://localhost:5000/status',
 
   USERNAME: 'test@gmail.com',
   PASSWORD: 'mahirjain30@',
