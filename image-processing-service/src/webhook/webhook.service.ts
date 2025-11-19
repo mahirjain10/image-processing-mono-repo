@@ -3,9 +3,11 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { ImageProcessing } from '@shared/prisma/generated/client';
 import { PrismaService } from '@shared/prisma/prisma.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, take, timeout } from 'rxjs';
 import { S3Record } from './interface/s3Record.interface';
 import { TRANSFORMATION_TYPE } from '@src/upload/constants/upload.constants';
+let numberOfTimesFuncCalled = 0;
+let numberOfTimesSuccessfullyPushed = 0;
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
@@ -39,9 +41,14 @@ export class WebhookService {
     return;
   };
   handleS3UploadSuccessEvent = async (bodyJson: S3Record) => {
+    numberOfTimesFuncCalled++;
+    this.logger.log('numberOfTimesFuncCalled: ', numberOfTimesFuncCalled);
     this.logger.debug('body json :', bodyJson);
     this.logger.debug('body key json :', bodyJson.s3.object.key);
-
+    // this.logger.debug(
+    //   `traceid: ${randomUUID()} for recorde: `,
+    //   bodyJson.s3.object.key,
+    // );
     const imageProcessing = await this.getTransformation(
       bodyJson.s3.object.key,
     );
@@ -56,27 +63,67 @@ export class WebhookService {
     let value;
     switch (transformationType) {
       case TRANSFORMATION_TYPE.CONVERT:
-        value = await firstValueFrom(
-          this.ConvertQueue.emit('convert_queue', imageProcessing),
-        );
+        this.ConvertQueue.emit('convert_queue', imageProcessing)
+          .pipe(take(1), timeout(5000))
+          .subscribe({
+            next: () =>
+              this.logger.debug(
+                `emit succeeded for job ${imageProcessing?.id}`,
+              ),
+            error: (err) =>
+              this.logger.error(
+                `emit error for job ${imageProcessing?.id}`,
+                err,
+              ),
+          });
         this.logger.debug('Pushed into convert_queue');
         break;
       case TRANSFORMATION_TYPE.FORCE_RESIZE:
-        value = await firstValueFrom(
-          this.ForceResizeQueue.emit('force_resize_queue', imageProcessing),
-        );
+        this.ForceResizeQueue.emit('force_resize_queue', imageProcessing)
+          .pipe(take(1), timeout(5000))
+          .subscribe({
+            next: () =>
+              this.logger.debug(
+                `emit succeeded for job ${imageProcessing?.id}`,
+              ),
+            error: (err) =>
+              this.logger.error(
+                `emit error for job ${imageProcessing?.id}`,
+                err,
+              ),
+          });
         this.logger.debug('Pushed into force_resize_queue');
         break;
       case TRANSFORMATION_TYPE.RESIZE:
-        value = await firstValueFrom(
-          this.ResizeQueue.emit('resize_queue', imageProcessing),
-        );
+        this.ResizeQueue.emit('resize_queue', imageProcessing)
+          .pipe(take(1), timeout(5000))
+          .subscribe({
+            next: () =>
+              this.logger.debug(
+                `emit succeeded for job ${imageProcessing?.id}`,
+              ),
+            error: (err) =>
+              this.logger.error(
+                `emit error for job ${imageProcessing?.id}`,
+                err,
+              ),
+          });
         this.logger.debug('Pushed into resize_queue');
         break;
       case TRANSFORMATION_TYPE.ROTATE:
-        value = await firstValueFrom(
-          this.RotateQueue.emit('rotate_queue', imageProcessing),
-        );
+        this.RotateQueue.emit('rotate_queue', imageProcessing)
+          .pipe(take(1), timeout(5000))
+          .subscribe({
+            next: () =>
+              this.logger.debug(
+                `emit succeeded for job ${imageProcessing?.id}`,
+              ),
+            error: (err) =>
+              this.logger.error(
+                `emit error for job ${imageProcessing?.id}`,
+                err,
+              ),
+          });
         this.logger.debug('Pushed into rotate_queue');
         break;
       default:
@@ -84,6 +131,11 @@ export class WebhookService {
           'queue me should be rotate_queue or resize_queue or force_resize_queue or convert_queue',
         );
     }
+    numberOfTimesSuccessfullyPushed++;
+    this.logger.log(
+      'numberOfTimesSuccessfullyPushed: ',
+      numberOfTimesSuccessfullyPushed,
+    );
     this.logger.log('logging value ', value);
   };
 }
