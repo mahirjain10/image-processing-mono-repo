@@ -341,6 +341,4 @@ Key metrics to monitor:
 - **Containerization**: Docker, Docker Compose
 - **Image Processing**: Sharp (Node.js), Imaging (Go)
 
-## License
 
-Private project - All rights reserved.
