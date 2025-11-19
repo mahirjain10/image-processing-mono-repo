@@ -29,7 +29,7 @@ const bootstrap = async () => {
       transform: true,
       forbidNonWhitelisted: true,
       skipMissingProperties: false,
-      validateCustomDecorators: true
+      validateCustomDecorators: true,
     }),
   );
 
@@ -37,7 +37,11 @@ const bootstrap = async () => {
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
-      urls: [configService.get<string>('rabbitmq.url') || process.env.RABBITMQ_URL || 'amqp://localhost:5672'],
+      urls: [
+        configService.get<string>('rabbitmq.url') ||
+          process.env.RABBITMQ_URL ||
+          'amqp://localhost:5672',
+      ],
       queue: 'status_queue',
       exchangeType: 'direct',
       queueOptions: {
@@ -54,7 +58,7 @@ const bootstrap = async () => {
     transport: Transport.REDIS,
     options: {
       host: process.env.REDIS_HOST || 'localhost',
-      port: Number(process.env.REDIS_PORT)
+      port: Number(process.env.REDIS_PORT),
     },
   });
 
