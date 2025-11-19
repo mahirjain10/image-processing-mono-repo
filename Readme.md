@@ -33,11 +33,11 @@ This image processing system provides:
 
 ### Test Demo Video
 
-[Watch the live testing demonstration](#) - See the system handling 100+ concurrent image processing jobs with real-time monitoring.
+[Watch the live testing demonstration](https://drive.google.com/file/d/1Zlfn8IPXkAOj-bP2iZWQhl3-bLsSm6P4/view?usp=drive_link) - See the system handling 100+ concurrent image processing jobs with real-time monitoring.
 
 ### Backend APIs Walkthrough Demo
 
-[Watch the complete API walkthrough](#) - Comprehensive tour of all REST endpoints, authentication, file upload, job processing, and webhook integration.
+[Watch the complete API walkthrough](https://drive.google.com/file/d/1CYufN78RY4l078-VlLXLlYxXz6ZbW7IC/view?usp=drive_link) - Comprehensive tour of all REST endpoints, authentication, file upload, job processing, and webhook integration.
 
 ## Prerequisites
 
@@ -197,7 +197,7 @@ Special thanks to AI assistants for helping create comprehensive test files that
 1. **Clone the repository**
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/mahirjain10/image-processing-mono-repo 
    cd image-processing-mono-repo
    ```
 
